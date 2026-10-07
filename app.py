@@ -1,122 +1,264 @@
 import os
-import streamlit as st 
-import google.generativeai
+import streamlit as st
+from google import genai
 
-# Page settings
+# ---------------------------------------------------------
+# Page Settings
+# ---------------------------------------------------------
 st.set_page_config(
     page_title="PocketSmart AI",
-    page_icon="💰"
+    page_icon="💰",
+    layout="wide"
 )
 
-# Gemini API Setup - FIXED
+# ---------------------------------------------------------
+# Gemini API Configuration
+# ---------------------------------------------------------
 api_key = st.secrets.get("GEMINI_API_KEY", os.getenv("GEMINI_API_KEY"))
 
-if api_key:
-    genai.configure(api_key=api_key)
-    model = genai.GenerativeModel("gemini-1.5-flash")
+if not api_key:
+    client = None
 else:
-    model = None
+    client = genai.Client(api_key=api_key)
 
-# App title
+# ---------------------------------------------------------
+# App Header
+# ---------------------------------------------------------
 st.title("💰 PocketSmart AI")
 st.subheader("Smart Budget Planner for Students")
 st.write("Your AI money manager for students!")
 
+st.divider()
+
+# ---------------------------------------------------------
 # Income
+# ---------------------------------------------------------
 income = st.number_input(
-    "Monthly Income / Pocket Money ₹",
+    "💵 Monthly Income / Pocket Money (₹)",
     min_value=0,
     value=15000,
-    step=1000
+    step=1000,
+    format="%d"
 )
 
+# ---------------------------------------------------------
 # Expenses
+# ---------------------------------------------------------
 st.subheader("📊 Monthly Expenses")
 
 col1, col2 = st.columns(2)
 
 with col1:
-    rent = st.number_input("🏠 Rent / Hostel ₹", min_value=0, value=5000)
-    food = st.number_input("🍱 Food ₹", min_value=0, value=4000)
-    travel = st.number_input("🚌 Travel ₹", min_value=0, value=1000)
+    rent = st.number_input(
+        "🏠 Rent / Hostel (₹)",
+        min_value=0,
+        value=5000,
+        step=500,
+        format="%d"
+    )
+
+    food = st.number_input(
+        "🍱 Food (₹)",
+        min_value=0,
+        value=4000,
+        step=500,
+        format="%d"
+    )
+
+    travel = st.number_input(
+        "🚌 Travel (₹)",
+        min_value=0,
+        value=1000,
+        step=500,
+        format="%d"
+    )
 
 with col2:
-    shopping = st.number_input("🛍️ Shopping / OTT ₹", min_value=0, value=1000)
-    others = st.number_input("📦 Others ₹", min_value=0, value=1000)
+    shopping = st.number_input(
+        "🛍️ Shopping / OTT (₹)",
+        min_value=0,
+        value=1000,
+        step=500,
+        format="%d"
+    )
 
+    others = st.number_input(
+        "📦 Other Expenses (₹)",
+        min_value=0,
+        value=1000,
+        step=500,
+        format="%d"
+    )
+
+# ---------------------------------------------------------
 # Calculations
+# ---------------------------------------------------------
 total_expense = rent + food + travel + shopping + others
 savings = income - total_expense
 
-# Display results
+# ---------------------------------------------------------
+# Summary
+# ---------------------------------------------------------
 st.subheader("💰 Your Summary")
 
-col3, col4 = st.columns(2)
+col3, col4, col5 = st.columns(3)
 
 with col3:
-    st.metric("Total Expense", f"₹{total_expense}")
+    st.metric(
+        "Total Expense",
+        f"₹{total_expense:,}"
+    )
 
 with col4:
-    st.metric("Remaining", f"₹{savings}")
+    st.metric(
+        "Remaining",
+        f"₹{savings:,}"
+    )
 
-# Saving goal
+with col5:
+    if income > 0:
+        saving_percentage = (savings / income) * 100
+    else:
+        saving_percentage = 0
+
+    st.metric(
+        "Saving Rate",
+        f"{saving_percentage:.1f}%"
+    )
+
+# ---------------------------------------------------------
+# Budget Status
+# ---------------------------------------------------------
+if savings < 0:
+    st.error(
+        f"⚠️ You are overspending by ₹{abs(savings):,}. "
+        "Try reducing your unnecessary expenses."
+    )
+elif savings == 0:
+    st.warning(
+        "⚠️ Your income and expenses are equal. "
+        "Try to save at least a small amount every month."
+    )
+elif saving_percentage >= 20:
+    st.success(
+        "🎉 Great job! You are saving 20% or more of your income."
+    )
+else:
+    st.info(
+        "💡 You have some savings. Try to gradually increase your "
+        "monthly saving rate."
+    )
+
+# ---------------------------------------------------------
+# Saving Goal
+# ---------------------------------------------------------
+st.subheader("🎯 Saving Goal")
+
 goal = st.selectbox(
-    "🎯 Your Saving Goal",
+    "Choose your saving goal",
     [
         "Save ₹5,000 per month",
         "Buy a Laptop",
         "Plan a Trip",
+        "Build an Emergency Fund",
         "Just Manage My Money"
     ]
 )
 
-# AI button
-if st.button("💡 Get AI Budget Plan"):
+# ---------------------------------------------------------
+# AI Budget Plan
+# ---------------------------------------------------------
+st.subheader("🤖 AI Budget Advisor")
 
-    if model is None:
+if st.button(
+    "💡 Get AI Budget Plan",
+    type="primary",
+    use_container_width=True
+):
+
+    if client is None:
         st.error(
-            "Gemini API key is not configured. "
-            "Add GEMINI_API_KEY in Streamlit Secrets."
+            "Gemini API key is not configured.\n\n"
+            "Please add GEMINI_API_KEY to your Streamlit Secrets."
         )
-    else:
-        with st.spinner("🤖 Creating your budget plan..."):
 
-            prompt = f"""
-You are a friendly budget assistant for an Indian college student.
+    else:
+
+        prompt = f"""
+You are PocketSmart AI, a friendly personal budget assistant
+for an Indian college student.
+
+Analyze the student's monthly budget.
 
 Monthly income: ₹{income}
-Rent/Hostel: ₹{rent}
+Rent / Hostel: ₹{rent}
 Food: ₹{food}
 Travel: ₹{travel}
-Shopping/OTT: ₹{shopping}
+Shopping / OTT: ₹{shopping}
 Other expenses: ₹{others}
 
 Total expenses: ₹{total_expense}
 Remaining money: ₹{savings}
+Saving rate: {saving_percentage:.1f}%
 Saving goal: {goal}
 
-Give:
-1. A simple budget review.
-2. Three ways to reduce unnecessary spending.
-3. Three practical saving tips.
-4. A simple monthly plan to reach the student's goal.
+Provide the following:
 
-Use simple Tamil + English mix.
-Keep the advice educational and easy for a college student to understand.
+1. Give a short review of the student's current budget.
+2. Explain whether the student is overspending or saving well.
+3. Give exactly 3 practical ways to reduce unnecessary expenses.
+4. Give exactly 3 practical saving tips.
+5. Create a simple monthly budget plan.
+6. Give specific advice related to the selected saving goal.
+
+Use a friendly Tamil + English mix (Tanglish).
+Keep the advice simple, practical, educational, and suitable
+for a college student in India.
+
+Do not give investment, loan, cryptocurrency, or gambling advice.
 """
 
+        with st.spinner("🤖 Creating your personalized budget plan..."):
+
             try:
-                response = model.generate_content(prompt)
-                st.success("✨ Your Personalized Budget Plan")
-                st.write(response.text)
+
+                response = client.models.generate_content(
+                    model="gemini-2.5-flash",
+                    contents=prompt
+                )
+
+                if response and response.text:
+                    st.success("✨ Your Personalized Budget Plan")
+                    st.markdown(response.text)
+                else:
+                    st.warning(
+                        "The AI did not return a response. "
+                        "Please try again."
+                    )
 
             except Exception as e:
-                st.error("Something went wrong while generating the AI plan.")
-                st.write(str(e))
+                st.error(
+                    "❌ Unable to generate the AI budget plan."
+                )
 
+                st.caption(
+                    f"Error details: {str(e)}"
+                )
+
+# ---------------------------------------------------------
 # Sidebar
+# ---------------------------------------------------------
 st.sidebar.title("ℹ️ About")
+
 st.sidebar.info(
-    "PocketSmart AI - Smart Budget Planner\n\n"
+    "PocketSmart AI\n\n"
+    "Smart Budget Planner for Students\n\n"
     "NASSCOM FSP SB Project"
+)
+
+st.sidebar.divider()
+
+st.sidebar.caption(
+    "💡 This application provides educational budgeting "
+    "guidance and is not professional financial advice."
 )
