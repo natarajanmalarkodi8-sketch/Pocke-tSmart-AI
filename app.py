@@ -1,6 +1,6 @@
 import os
 import streamlit as st
-from google import generativeai
+from google import generativeai as genai
 
 # ---------------------------------------------------------
 # Page Settings
