@@ -8,13 +8,14 @@ st.set_page_config(
     page_icon="💰"
 )
 
-# Gemini API
+# Gemini API Setup - FIXED
 api_key = st.secrets.get("GEMINI_API_KEY", os.getenv("GEMINI_API_KEY"))
 
 if api_key:
-    client = genai.Client(api_key=api_key)
+    genai.configure(api_key=api_key)
+    model = genai.GenerativeModel("gemini-1.5-flash")
 else:
-    client = None
+    model = None
 
 # App title
 st.title("💰 PocketSmart AI")
@@ -72,7 +73,7 @@ goal = st.selectbox(
 # AI button
 if st.button("💡 Get AI Budget Plan"):
 
-    if client is None:
+    if model is None:
         st.error(
             "Gemini API key is not configured. "
             "Add GEMINI_API_KEY in Streamlit Secrets."
@@ -105,11 +106,7 @@ Keep the advice educational and easy for a college student to understand.
 """
 
             try:
-                response = client.models.generate_content(
-                    model="gemini-3.8-flash",
-                    contents=prompt
-                )
-
+                response = model.generate_content(prompt)
                 st.success("✨ Your Personalized Budget Plan")
                 st.write(response.text)
 
